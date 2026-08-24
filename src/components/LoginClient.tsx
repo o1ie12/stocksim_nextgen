@@ -27,7 +27,11 @@ export function LoginClient() {
         setPlayers(data.players ?? []);
         setTeachers(data.teachers ?? []);
       })
-      .catch(() => setRosterError("Couldn't load the roster. Check your connection and reload."));
+      .catch((err) =>
+        setRosterError(
+          `Couldn't load the roster: ${err instanceof Error ? err.message : "unknown error"}`
+        )
+      );
   }, []);
 
   function chooseRole(next: "player" | "teacher") {
