@@ -5,6 +5,7 @@ import { Nav } from "@/components/Nav";
 import { AdvanceWeekButton } from "@/components/AdvanceWeekButton";
 import { money, shares as fmtShares } from "@/lib/format";
 import { STOCK_BG_CLASS } from "@/lib/stockColorClasses";
+import { ResetPinButton } from "@/components/ResetPinButton";
 
 export default async function TeacherPage() {
   const session = await getSession();
@@ -23,15 +24,16 @@ export default async function TeacherPage() {
         <AdvanceWeekButton currentWeek={marketState.current_week} />
 
         <div className="flex flex-col gap-3">
-          <span className="text-xs uppercase tracking-widest font-bold">All Players (read-only)</span>
+          <span className="text-xs uppercase tracking-widest font-bold">All Players</span>
           <div className="nb-border nb-shadow bg-paper overflow-x-auto">
-            <table className="w-full text-sm min-w-[640px]">
+            <table className="w-full text-sm min-w-[720px]">
               <thead>
                 <tr className="border-b-[3px] border-ink text-xs uppercase tracking-widest">
                   <th className="text-left px-4 py-3">Player</th>
                   <th className="text-left px-4 py-3">Holdings</th>
                   <th className="text-right px-4 py-3">Cash</th>
                   <th className="text-right px-4 py-3">Total Value</th>
+                  <th className="text-right px-4 py-3">Login</th>
                 </tr>
               </thead>
               <tbody>
@@ -53,11 +55,16 @@ export default async function TeacherPage() {
                     </td>
                     <td className="px-4 py-3 text-right font-mono-num whitespace-nowrap">{money(p.cash)}</td>
                     <td className="px-4 py-3 text-right font-mono-num font-bold whitespace-nowrap">{money(p.totalValue)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end">
+                        <ResetPinButton playerId={p.id} playerName={p.name} />
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {sorted.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-xs uppercase tracking-wide font-bold">
+                    <td colSpan={5} className="px-4 py-6 text-center text-xs uppercase tracking-wide font-bold">
                       No players yet.
                     </td>
                   </tr>
