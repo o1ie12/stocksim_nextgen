@@ -1,0 +1,14 @@
+{
+  "_comment": "Edit this file to set real names, then run `npm run seed` again. Existing accounts (matched by name) are left untouched — only new names get created — so this is safe to re-run any time, e.g. to add a late-joining student.",
+  "teachers": ["Teacher A", "Teacher B", "Teacher C"],
+  "students": [
+    "Student 1",
+    "Student 2",
+    "Student 3",
+    "Student 4",
+    "Student 5",
+    "Student 6",
+    "Student 7",
+    "Student 8"
+  ]
+}
