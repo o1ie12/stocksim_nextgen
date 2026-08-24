@@ -12,7 +12,7 @@ export interface StockRow {
 export interface PlayerRow {
   id: string;
   name: string;
-  pin_hash: string;
+  pin: string;
   cash: number;
   created_at: string;
 }
@@ -20,7 +20,7 @@ export interface PlayerRow {
 export interface TeacherRow {
   id: string;
   name: string;
-  pin_hash: string;
+  pin: string;
 }
 
 export interface HoldingRow {

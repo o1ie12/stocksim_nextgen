@@ -5,10 +5,13 @@
 create extension if not exists pgcrypto;
 
 -- ---------- players ----------
+-- PINs are stored in plain text on purpose: this app is a classroom game
+-- with fake money, and the practical need (any teacher can look a PIN up
+-- directly in Supabase, no recovery flow needed) outweighs hashing them.
 create table if not exists players (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
-  pin_hash text not null,
+  pin text not null,
   cash integer not null default 5000,
   created_at timestamptz not null default now()
 );
@@ -17,7 +20,7 @@ create table if not exists players (
 create table if not exists teachers (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
-  pin_hash text not null,
+  pin text not null,
   created_at timestamptz not null default now()
 );
 

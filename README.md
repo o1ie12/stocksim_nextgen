@@ -24,7 +24,9 @@ Next.js (App Router) + TypeScript + Tailwind v4 + Supabase (Postgres). Auth is a
    npm run seed
    ```
 
-   Reads [`scripts/roster.json`](scripts/roster.json) and creates any teacher/student accounts that don't already exist (matched by name), the 10 stocks at their starting prices, and the Week 1 market state. Newly-created PINs print to the console and are also saved to `scripts/roster-credentials.txt` (gitignored — distribute them to the class, then delete the file).
+   Reads [`scripts/roster.json`](scripts/roster.json) and creates any teacher/student accounts that don't already exist (matched by name), the 10 stocks at their starting prices, and the Week 1 market state. Newly-created PINs print to the console and are also saved to `scripts/roster-credentials.txt` (gitignored — distribute them to the class, then delete the file if you want).
+
+   PINs are stored as plain text in the `pin` column on `players`/`teachers` — not hashed. This is a deliberate call: it's a classroom game with fake money, and being able to open the Supabase Table Editor and read any student's PIN directly (no reset flow, no lost-PIN dead end) matters more here than hashing would. **PINs are never displayed anywhere in the app itself** — only in Supabase directly, or in that gitignored local file.
 
    **To add a real roster:** edit `scripts/roster.json` (teacher and student names) and re-run `npm run seed`. Existing accounts are left untouched, so this is safe to run again later — e.g. to add a student who joins in week 3.
 

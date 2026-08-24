@@ -5,7 +5,6 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { STOCKS_META } from "../src/lib/stocksMeta";
@@ -29,16 +28,15 @@ async function seedAccounts(
   names: string[],
   newCreds: { table: string; name: string; pin: string }[]
 ) {
-  const { data: existing, error } = await supabase.from(table).select("name");
+  const { data: existing, error } = await supabase.from(table).select("id, name, pin");
   if (error) throw error;
-  const existingNames = new Set((existing ?? []).map((r) => r.name));
+  const existingByName = new Map((existing ?? []).map((r) => [r.name, r]));
 
-  const toInsert: { name: string; pin_hash: string }[] = [];
+  const toInsert: { name: string; pin: string }[] = [];
   for (const name of names) {
-    if (existingNames.has(name)) continue;
+    if (existingByName.has(name)) continue;
     const pin = randomPin();
-    const pin_hash = await bcrypt.hash(pin, 10);
-    toInsert.push({ name, pin_hash });
+    toInsert.push({ name, pin });
     newCreds.push({ table, name, pin });
   }
 
@@ -46,7 +44,22 @@ async function seedAccounts(
     const { error: insertError } = await supabase.from(table).insert(toInsert);
     if (insertError) throw insertError;
   }
-  console.log(`${table}: ${existingNames.size} existing, ${toInsert.length} newly created.`);
+
+  // Backfill any existing row that doesn't have a PIN yet (e.g. accounts
+  // created before PINs were stored directly).
+  let backfilled = 0;
+  for (const row of existing ?? []) {
+    if (row.pin) continue;
+    const pin = randomPin();
+    const { error: updateError } = await supabase.from(table).update({ pin }).eq("id", row.id);
+    if (updateError) throw updateError;
+    newCreds.push({ table, name: row.name, pin });
+    backfilled++;
+  }
+
+  console.log(
+    `${table}: ${(existing ?? []).length - backfilled} already had a PIN, ${backfilled} backfilled, ${toInsert.length} newly created.`
+  );
 }
 
 async function seedStocks() {

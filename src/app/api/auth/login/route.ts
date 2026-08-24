@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { setSessionCookie } from "@/lib/session";
 
@@ -16,16 +15,11 @@ export async function POST(req: Request) {
   const table = role === "teacher" ? "teachers" : "players";
   const { data: row, error } = await supabaseAdmin
     .from(table)
-    .select("id, name, pin_hash")
+    .select("id, name, pin")
     .eq("id", id)
     .maybeSingle();
 
-  if (error || !row) {
-    return NextResponse.json({ error: "Login failed" }, { status: 401 });
-  }
-
-  const ok = await bcrypt.compare(pin, row.pin_hash);
-  if (!ok) {
+  if (error || !row || row.pin !== pin) {
     return NextResponse.json({ error: "Incorrect PIN" }, { status: 401 });
   }
 

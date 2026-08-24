@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getSession } from "@/lib/session";
 
@@ -21,11 +20,10 @@ export async function POST(req: Request) {
   }
 
   const pin = randomPin();
-  const pin_hash = await bcrypt.hash(pin, 10);
 
   const { data, error } = await supabaseAdmin
     .from("players")
-    .update({ pin_hash })
+    .update({ pin })
     .eq("id", playerId)
     .select("name")
     .single();
