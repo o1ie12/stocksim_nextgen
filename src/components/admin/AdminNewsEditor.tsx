@@ -95,7 +95,10 @@ export function AdminNewsEditor({ news, stocks }: { news: AdminNewsItem[]; stock
 
       <div className="flex flex-col gap-2">
         {news.map((n) => (
-          <NewsRow key={n.id} item={n} />
+          // Keying on the headline too forces a remount (fresh initial
+          // value) if it changed underneath us — e.g. another teacher
+          // edited it — so "Save" can never silently replay a stale draft.
+          <NewsRow key={`${n.id}-${n.headline}`} item={n} />
         ))}
         {news.length === 0 && <p className="text-xs uppercase tracking-wide font-bold">No news yet.</p>}
       </div>

@@ -21,7 +21,7 @@ export default async function DashboardPage() {
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-6">
         <PortfolioHero totalValue={totalValue} cash={player.cash} holdingsValue={holdingsValue} />
 
-        <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
+        <div className="grid lg:grid-cols-[1fr_440px] gap-6 items-start">
           <div className="flex flex-col gap-3">
             <span className="text-xs uppercase tracking-widest font-bold">Your Holdings</span>
             <HoldingsTable rows={holdings.map((h) => ({ key: h.key, name: h.name, shares: h.shares, currentPrice: h.currentPrice, value: h.value }))} />

@@ -69,7 +69,11 @@ export function AdminPriceEditor({ stocks }: { stocks: AdminStockRow[] }) {
   return (
     <div className="grid sm:grid-cols-2 gap-3">
       {stocks.map((s) => (
-        <PriceRow key={s.id} stock={s} />
+        // Keying on the price too forces a remount (and a fresh initial
+        // value) whenever it changes underneath us — e.g. this page sat
+        // open while a week advanced — so "Save" can never silently
+        // replay a stale number.
+        <PriceRow key={`${s.id}-${s.currentPrice}`} stock={s} />
       ))}
     </div>
   );

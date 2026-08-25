@@ -84,12 +84,12 @@ export function TradePanel({
     <div className="nb-border nb-shadow bg-paper p-5 flex flex-col gap-4">
       <span className="text-xs uppercase tracking-widest font-bold">Trade</span>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {stocks.map((s) => (
           <button
             key={s.id}
             onClick={() => selectStock(s.id)}
-            className={`nb-border nb-press px-2 py-2 text-xs font-display uppercase tracking-tight ${STOCK_BG_CLASS[s.key]} ${
+            className={`nb-border nb-press px-2 py-2 text-xs font-display uppercase tracking-tight truncate ${STOCK_BG_CLASS[s.key]} ${
               s.id === selectedId ? "nb-shadow" : "opacity-70"
             }`}
           >
