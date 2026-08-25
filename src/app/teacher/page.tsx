@@ -6,6 +6,7 @@ import { AdvanceWeekButton } from "@/components/AdvanceWeekButton";
 import { money, shares as fmtShares } from "@/lib/format";
 import { STOCK_BG_CLASS } from "@/lib/stockColorClasses";
 import { ResetPinButton } from "@/components/ResetPinButton";
+import { ResetGameButton } from "@/components/ResetGameButton";
 
 export default async function TeacherPage() {
   const session = await getSession();
@@ -81,6 +82,8 @@ export default async function TeacherPage() {
             </table>
           </div>
         </div>
+
+        <ResetGameButton />
       </main>
     </>
   );

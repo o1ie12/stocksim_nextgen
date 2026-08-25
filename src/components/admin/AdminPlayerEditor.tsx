@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { STOCK_BG_CLASS } from "@/lib/stockColorClasses";
 import type { StockKey } from "@/lib/stocksMeta";
+import { ConflictBanner } from "./ConflictBanner";
 
 export interface AdminPlayerRow {
   id: string;
@@ -74,6 +75,7 @@ function CashEditor({ playerId, initialCash }: { playerId: string; initialCash: 
   const [value, setValue] = useState(String(initialCash));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<string | null>(null);
 
   async function save() {
     const cash = Math.floor(Number(value));
@@ -83,15 +85,24 @@ function CashEditor({ playerId, initialCash }: { playerId: string; initialCash: 
     }
     setLoading(true);
     setError(null);
+    setConflict(null);
     try {
       const res = await fetch("/api/admin/set-cash", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId, cash }),
+        // initialCash is what this row loaded with — the server checks
+        // it's still true before writing (e.g. a student may have traded
+        // in another tab since this page loaded).
+        body: JSON.stringify({ playerId, cash, expectedCash: initialCash }),
       });
       const data = await res.json();
-      if (!res.ok) setError(data.error ?? "Failed");
-      else router.refresh();
+      if (res.status === 409 && data.conflict) {
+        setConflict(data.error);
+      } else if (!res.ok) {
+        setError(data.error ?? "Failed");
+      } else {
+        router.refresh();
+      }
     } catch {
       setError("Failed");
     } finally {
@@ -100,22 +111,25 @@ function CashEditor({ playerId, initialCash }: { playerId: string; initialCash: 
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs uppercase tracking-widest font-bold w-16 shrink-0">Cash</span>
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="nb-border w-28 px-2 py-1.5 font-mono-num text-sm"
-      />
-      <button
-        onClick={save}
-        disabled={loading}
-        className="nb-border nb-shadow-sm nb-press bg-ink text-paper px-3 py-1.5 text-xs font-bold uppercase disabled:opacity-40"
-      >
-        Save
-      </button>
-      {error && <span className="text-down text-xs font-bold">{error}</span>}
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-xs uppercase tracking-widest font-bold w-16 shrink-0">Cash</span>
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="nb-border w-28 px-2 py-1.5 font-mono-num text-sm"
+        />
+        <button
+          onClick={save}
+          disabled={loading}
+          className="nb-border nb-shadow-sm nb-press bg-ink text-paper px-3 py-1.5 text-xs font-bold uppercase disabled:opacity-40"
+        >
+          Save
+        </button>
+        {error && <span className="text-down text-xs font-bold">{error}</span>}
+      </div>
+      {conflict && <ConflictBanner message={conflict} />}
     </div>
   );
 }
@@ -133,6 +147,7 @@ function HoldingRow({
   const [value, setValue] = useState(String(initialShares));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<string | null>(null);
 
   async function save() {
     const shares = Math.floor(Number(value));
@@ -142,15 +157,21 @@ function HoldingRow({
     }
     setLoading(true);
     setError(null);
+    setConflict(null);
     try {
       const res = await fetch("/api/admin/set-holding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId, stockId: stock.id, shares }),
+        body: JSON.stringify({ playerId, stockId: stock.id, shares, expectedShares: initialShares }),
       });
       const data = await res.json();
-      if (!res.ok) setError(data.error ?? "Failed");
-      else router.refresh();
+      if (res.status === 409 && data.conflict) {
+        setConflict(data.error);
+      } else if (!res.ok) {
+        setError(data.error ?? "Failed");
+      } else {
+        router.refresh();
+      }
     } catch {
       setError("Failed");
     } finally {
@@ -159,24 +180,27 @@ function HoldingRow({
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span className={`nb-border ${STOCK_BG_CLASS[stock.key]} px-2 py-1.5 text-xs font-display uppercase tracking-tight w-28 shrink-0 truncate`}>
-        {stock.name}
-      </span>
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="nb-border w-20 px-2 py-1.5 font-mono-num text-sm"
-      />
-      <button
-        onClick={save}
-        disabled={loading}
-        className="nb-border nb-shadow-sm nb-press bg-paper px-3 py-1.5 text-xs font-bold uppercase disabled:opacity-40"
-      >
-        Save
-      </button>
-      {error && <span className="text-down text-xs font-bold">{error}</span>}
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <span className={`nb-border ${STOCK_BG_CLASS[stock.key]} px-2 py-1.5 text-xs font-display uppercase tracking-tight w-28 shrink-0 truncate`}>
+          {stock.name}
+        </span>
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="nb-border w-20 px-2 py-1.5 font-mono-num text-sm"
+        />
+        <button
+          onClick={save}
+          disabled={loading}
+          className="nb-border nb-shadow-sm nb-press bg-paper px-3 py-1.5 text-xs font-bold uppercase disabled:opacity-40"
+        >
+          Save
+        </button>
+        {error && <span className="text-down text-xs font-bold">{error}</span>}
+      </div>
+      {conflict && <ConflictBanner message={conflict} />}
     </div>
   );
 }

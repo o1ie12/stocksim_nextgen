@@ -10,26 +10,27 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const stockId = body?.stockId as string | undefined;
   const price = Number(body?.price);
+  const expectedPrice = Number(body?.expectedPrice);
 
-  if (!stockId || !Number.isInteger(price) || price <= 0) {
+  if (!stockId || !Number.isInteger(price) || price <= 0 || !Number.isInteger(expectedPrice)) {
     return NextResponse.json({ error: "Price must be a positive whole number" }, { status: 400 });
   }
 
-  const { data: stock, error: fetchError } = await supabaseAdmin
-    .from("stocks")
-    .select("name, current_price")
-    .eq("id", stockId)
-    .single();
-  if (fetchError || !stock) return NextResponse.json({ error: "Stock not found" }, { status: 404 });
+  const { data, error } = await supabaseAdmin.rpc("admin_set_price", {
+    p_stock_id: stockId,
+    p_expected_price: expectedPrice,
+    p_new_price: price,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  const { error } = await supabaseAdmin.from("stocks").update({ current_price: price }).eq("id", stockId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data.ok) {
+    return NextResponse.json(
+      { error: `${data.name} is now $${data.currentValue} — someone else changed it.`, conflict: true, currentValue: data.currentValue },
+      { status: 409 }
+    );
+  }
 
-  await logAdminAction(
-    teacher.id,
-    teacher.name,
-    `Set ${stock.name} price from $${stock.current_price} to $${price}`
-  );
+  await logAdminAction(teacher.id, teacher.name, `Set ${data.name} price from $${expectedPrice} to $${price}`);
 
   return NextResponse.json({ ok: true });
 }

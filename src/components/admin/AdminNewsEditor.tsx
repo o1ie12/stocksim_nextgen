@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ConflictBanner } from "./ConflictBanner";
 
 export interface AdminNewsItem {
   id: string;
@@ -111,20 +112,30 @@ function NewsRow({ item }: { item: AdminNewsItem }) {
   const [headline, setHeadline] = useState(item.headline);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<string | null>(null);
 
   async function save() {
     if (!headline.trim()) return;
     setLoading(true);
     setError(null);
+    setConflict(null);
     try {
       const res = await fetch("/api/admin/news", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: item.id, headline: headline.trim() }),
+        // item.headline is what this row loaded with — the server checks
+        // it's still true before writing (e.g. another teacher may have
+        // edited it since this page loaded).
+        body: JSON.stringify({ id: item.id, headline: headline.trim(), expectedHeadline: item.headline }),
       });
       const data = await res.json();
-      if (!res.ok) setError(data.error ?? "Failed");
-      else router.refresh();
+      if (res.status === 409 && data.conflict) {
+        setConflict(data.error);
+      } else if (!res.ok) {
+        setError(data.error ?? "Failed");
+      } else {
+        router.refresh();
+      }
     } catch {
       setError("Failed");
     } finally {
@@ -148,34 +159,37 @@ function NewsRow({ item }: { item: AdminNewsItem }) {
   }
 
   return (
-    <div className="nb-border bg-paper p-2 flex flex-wrap items-center gap-2">
-      <span className="text-[10px] font-bold uppercase tracking-wide nb-border bg-ink text-paper px-1.5 py-0.5 shrink-0">
-        Wk {item.weekNumber}
-      </span>
-      <span className="text-[10px] font-bold uppercase tracking-wide opacity-60 shrink-0 w-20 truncate">
-        {item.stockName ?? "Market"}
-      </span>
-      <input
-        type="text"
-        value={headline}
-        onChange={(e) => setHeadline(e.target.value)}
-        className="nb-border flex-1 min-w-[160px] px-2 py-1 text-sm"
-      />
-      <button
-        onClick={save}
-        disabled={loading}
-        className="nb-border nb-shadow-sm nb-press bg-ink text-paper px-2 py-1 text-[10px] font-bold uppercase disabled:opacity-40"
-      >
-        Save
-      </button>
-      <button
-        onClick={remove}
-        disabled={loading}
-        className="nb-border nb-shadow-sm nb-press bg-paper px-2 py-1 text-[10px] font-bold uppercase disabled:opacity-40"
-      >
-        Delete
-      </button>
-      {error && <span className="text-down text-xs font-bold">{error}</span>}
+    <div className="flex flex-col gap-1.5">
+      <div className="nb-border bg-paper p-2 flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wide nb-border bg-ink text-paper px-1.5 py-0.5 shrink-0">
+          Wk {item.weekNumber}
+        </span>
+        <span className="text-[10px] font-bold uppercase tracking-wide opacity-60 shrink-0 w-20 truncate">
+          {item.stockName ?? "Market"}
+        </span>
+        <input
+          type="text"
+          value={headline}
+          onChange={(e) => setHeadline(e.target.value)}
+          className="nb-border flex-1 min-w-[160px] px-2 py-1 text-sm"
+        />
+        <button
+          onClick={save}
+          disabled={loading}
+          className="nb-border nb-shadow-sm nb-press bg-ink text-paper px-2 py-1 text-[10px] font-bold uppercase disabled:opacity-40"
+        >
+          Save
+        </button>
+        <button
+          onClick={remove}
+          disabled={loading}
+          className="nb-border nb-shadow-sm nb-press bg-paper px-2 py-1 text-[10px] font-bold uppercase disabled:opacity-40"
+        >
+          Delete
+        </button>
+        {error && <span className="text-down text-xs font-bold">{error}</span>}
+      </div>
+      {conflict && <ConflictBanner message={conflict} />}
     </div>
   );
 }

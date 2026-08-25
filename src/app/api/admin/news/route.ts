@@ -33,20 +33,30 @@ export async function PATCH(req: Request) {
   const body = await req.json().catch(() => null);
   const id = body?.id as string | undefined;
   const headline = typeof body?.headline === "string" ? body.headline.trim() : "";
+  const expectedHeadline = typeof body?.expectedHeadline === "string" ? body.expectedHeadline : undefined;
 
-  if (!id || !headline) {
+  if (!id || !headline || expectedHeadline === undefined) {
     return NextResponse.json({ error: "Need an id and a headline" }, { status: 400 });
   }
 
-  const { data: existing } = await supabaseAdmin.from("news_log").select("headline").eq("id", id).single();
+  const { data, error } = await supabaseAdmin.rpc("admin_update_news", {
+    p_news_id: id,
+    p_expected_headline: expectedHeadline,
+    p_new_headline: headline,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  const { error } = await supabaseAdmin.from("news_log").update({ headline }).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data.ok) {
+    return NextResponse.json(
+      { error: `That headline is now "${data.currentValue}" — someone else changed it.`, conflict: true, currentValue: data.currentValue },
+      { status: 409 }
+    );
+  }
 
   await logAdminAction(
     teacher.id,
     teacher.name,
-    `Edited news headline from "${existing?.headline ?? "?"}" to "${headline}"`
+    `Edited news headline from "${expectedHeadline}" to "${headline}"`
   );
 
   return NextResponse.json({ ok: true });

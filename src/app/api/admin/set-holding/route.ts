@@ -11,29 +11,35 @@ export async function POST(req: Request) {
   const playerId = body?.playerId as string | undefined;
   const stockId = body?.stockId as string | undefined;
   const shares = Number(body?.shares);
+  const expectedShares = Number(body?.expectedShares);
 
-  if (!playerId || !stockId || !Number.isInteger(shares) || shares < 0) {
+  if (!playerId || !stockId || !Number.isInteger(shares) || shares < 0 || !Number.isInteger(expectedShares)) {
     return NextResponse.json({ error: "Shares must be a whole number, zero or more" }, { status: 400 });
   }
 
-  const [{ data: player }, { data: stock }, { data: existing }] = await Promise.all([
-    supabaseAdmin.from("players").select("name").eq("id", playerId).single(),
-    supabaseAdmin.from("stocks").select("name").eq("id", stockId).single(),
-    supabaseAdmin.from("holdings").select("shares").eq("player_id", playerId).eq("stock_id", stockId).maybeSingle(),
-  ]);
+  const { data, error } = await supabaseAdmin.rpc("admin_set_holding", {
+    p_player_id: playerId,
+    p_stock_id: stockId,
+    p_expected_shares: expectedShares,
+    p_new_shares: shares,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  if (!player) return NextResponse.json({ error: "Player not found" }, { status: 404 });
-  if (!stock) return NextResponse.json({ error: "Stock not found" }, { status: 404 });
-
-  const { error } = await supabaseAdmin
-    .from("holdings")
-    .upsert({ player_id: playerId, stock_id: stockId, shares }, { onConflict: "player_id,stock_id" });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data.ok) {
+    return NextResponse.json(
+      {
+        error: `${data.playerName}'s ${data.stockName} holding is now ${data.currentValue} shares — someone else changed it.`,
+        conflict: true,
+        currentValue: data.currentValue,
+      },
+      { status: 409 }
+    );
+  }
 
   await logAdminAction(
     teacher.id,
     teacher.name,
-    `Set ${player.name}'s ${stock.name} holding from ${existing?.shares ?? 0} to ${shares} shares`
+    `Set ${data.playerName}'s ${data.stockName} holding from ${expectedShares} to ${shares} shares`
   );
 
   return NextResponse.json({ ok: true });
