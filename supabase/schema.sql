@@ -33,7 +33,9 @@ create table if not exists stocks (
   color text not null default '#111111',
   sort_order integer not null default 0,
   starting_price integer not null,
-  current_price integer not null
+  current_price integer not null,
+  sector text not null default '',
+  description text not null default ''
 );
 
 -- ---------- holdings ----------
@@ -74,6 +76,47 @@ create table if not exists market_state (
   updated_at timestamptz not null default now()
 );
 
+-- ---------- transactions ----------
+-- One row per buy/sell, with the student's own reasoning captured at the
+-- moment of the trade. This is the raw material for the end-of-program
+-- report deliverable — see the per-student CSV export in the teacher panel.
+create table if not exists transactions (
+  id uuid primary key default gen_random_uuid(),
+  player_id uuid not null references players(id) on delete cascade,
+  stock_id uuid not null references stocks(id) on delete cascade,
+  action text not null check (action in ('buy', 'sell')),
+  shares integer not null,
+  price integer not null,
+  reasoning text,
+  week_number integer not null,
+  created_at timestamptz not null default now()
+);
+
+-- ---------- news_hints ----------
+-- Indirect news: a headline posted this week names no stock and no
+-- direction. Behind the scenes it's tied to 1-2 stocks and a direction
+-- here, which gets applied to bias next week's roll for those stocks, then
+-- marked consumed. Never exposed to students; teacher panel can show it.
+create table if not exists news_hints (
+  id uuid primary key default gen_random_uuid(),
+  news_log_id uuid references news_log(id) on delete cascade,
+  stock_id uuid not null references stocks(id) on delete cascade,
+  direction text not null check (direction in ('up', 'down')),
+  scenario_key text not null,
+  planted_week integer not null,
+  consumed_at timestamptz
+);
+
+-- ---------- admin_actions ----------
+-- Audit trail for manual teacher overrides (price/cash/holdings/news edits).
+create table if not exists admin_actions (
+  id uuid primary key default gen_random_uuid(),
+  teacher_id uuid references teachers(id) on delete set null,
+  teacher_name text,
+  description text not null,
+  created_at timestamptz not null default now()
+);
+
 -- Lock every table down at the RLS layer. The app talks to Supabase only
 -- through server-side route handlers using the service role key, which
 -- bypasses RLS — so these tables should never be reachable via the public
@@ -85,6 +128,9 @@ alter table holdings enable row level security;
 alter table price_history enable row level security;
 alter table news_log enable row level security;
 alter table market_state enable row level security;
+alter table transactions enable row level security;
+alter table news_hints enable row level security;
+alter table admin_actions enable row level security;
 
 -- ---------- execute_trade ----------
 -- Atomic buy/sell: locks the stock + player + holding rows, validates funds
@@ -95,7 +141,8 @@ create or replace function execute_trade(
   p_player_id uuid,
   p_stock_id uuid,
   p_action text, -- 'buy' | 'sell'
-  p_shares integer
+  p_shares integer,
+  p_reasoning text default null
 ) returns json
 language plpgsql
 as $$
@@ -104,6 +151,7 @@ declare
   v_cash integer;
   v_shares integer;
   v_cost integer;
+  v_week integer;
 begin
   if p_shares is null or p_shares <= 0 then
     raise exception 'shares must be a positive whole number';
@@ -145,6 +193,11 @@ begin
   else
     raise exception 'invalid action: %', p_action;
   end if;
+
+  select current_week into v_week from market_state where id = 1;
+
+  insert into transactions (player_id, stock_id, action, shares, price, reasoning, week_number)
+    values (p_player_id, p_stock_id, p_action, p_shares, v_price, p_reasoning, coalesce(v_week, 1));
 
   return json_build_object('ok', true, 'price', v_price, 'cost', v_cost);
 end;

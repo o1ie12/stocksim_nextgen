@@ -7,6 +7,8 @@ export interface StockRow {
   sort_order: number;
   starting_price: number;
   current_price: number;
+  sector: string;
+  description: string;
 }
 
 export interface PlayerRow {
@@ -53,4 +55,34 @@ export interface MarketStateRow {
   hype_stock_id: string | null;
   novamed_event: "spike" | "flop" | null;
   updated_at: string;
+}
+
+export interface TransactionRow {
+  id: string;
+  player_id: string;
+  stock_id: string;
+  action: "buy" | "sell";
+  shares: number;
+  price: number;
+  reasoning: string | null;
+  week_number: number;
+  created_at: string;
+}
+
+export interface NewsHintRow {
+  id: string;
+  news_log_id: string | null;
+  stock_id: string;
+  direction: "up" | "down";
+  scenario_key: string;
+  planted_week: number;
+  consumed_at: string | null;
+}
+
+export interface AdminActionRow {
+  id: string;
+  teacher_id: string | null;
+  teacher_name: string | null;
+  description: string;
+  created_at: string;
 }

@@ -61,3 +61,9 @@ export async function clearSessionCookie() {
   const store = await cookies();
   store.delete(SESSION_COOKIE);
 }
+
+// Shared guard for the teacher-only admin API routes.
+export async function requireTeacher(): Promise<SessionPayload | null> {
+  const session = await getSession();
+  return session && session.role === "teacher" ? session : null;
+}

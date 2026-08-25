@@ -63,11 +63,11 @@ async function seedAccounts(
 }
 
 async function seedStocks() {
-  const { data: existing, error } = await supabase.from("stocks").select("key");
+  const { data: existing, error } = await supabase.from("stocks").select("key, sector, description");
   if (error) throw error;
-  const existingKeys = new Set((existing ?? []).map((r) => r.key));
+  const existingByKey = new Map((existing ?? []).map((r) => [r.key, r]));
 
-  const toInsert = STOCKS_META.filter((s) => !existingKeys.has(s.key)).map((s) => ({
+  const toInsert = STOCKS_META.filter((s) => !existingByKey.has(s.key)).map((s) => ({
     key: s.key,
     name: s.name,
     personality: s.personality,
@@ -75,13 +75,33 @@ async function seedStocks() {
     sort_order: s.sortOrder,
     starting_price: s.startingPrice,
     current_price: s.startingPrice,
+    sector: s.sector,
+    description: s.description,
   }));
 
   if (toInsert.length > 0) {
     const { error: insertError } = await supabase.from("stocks").insert(toInsert);
     if (insertError) throw insertError;
   }
-  console.log(`stocks: ${existingKeys.size} existing, ${toInsert.length} newly created.`);
+
+  // Backfill sector/description on stocks created before those columns
+  // existed (Round 1 accounts).
+  let backfilled = 0;
+  for (const meta of STOCKS_META) {
+    const row = existingByKey.get(meta.key);
+    if (!row) continue;
+    if (row.sector && row.description) continue;
+    const { error: updateError } = await supabase
+      .from("stocks")
+      .update({ sector: meta.sector, description: meta.description })
+      .eq("key", meta.key);
+    if (updateError) throw updateError;
+    backfilled++;
+  }
+
+  console.log(
+    `stocks: ${existingByKey.size - backfilled} already complete, ${backfilled} backfilled, ${toInsert.length} newly created.`
+  );
 }
 
 async function seedMarketStateAndHistory() {

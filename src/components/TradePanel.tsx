@@ -25,6 +25,7 @@ export function TradePanel({
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string>(stocks[0]?.id ?? "");
   const [qty, setQty] = useState(1);
+  const [reasoning, setReasoning] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,7 +60,7 @@ export function TradePanel({
       const res = await fetch("/api/trade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stockId: selected.id, action, shares: qty }),
+        body: JSON.stringify({ stockId: selected.id, action, shares: qty, reasoning }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -67,6 +68,7 @@ export function TradePanel({
       } else {
         setMessage(`${action === "buy" ? "Bought" : "Sold"} ${qty} share${qty === 1 ? "" : "s"} of ${selected.name}.`);
         setQty(1);
+        setReasoning("");
         router.refresh();
       }
     } catch {
@@ -162,6 +164,20 @@ export function TradePanel({
           <p className="font-mono-num text-sm">
             Order total: <strong>{money(cost)}</strong>
           </p>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="trade-reasoning" className="text-xs uppercase tracking-widest font-bold">
+              Why are you making this trade? <span className="font-normal normal-case opacity-60">(optional)</span>
+            </label>
+            <textarea
+              id="trade-reasoning"
+              value={reasoning}
+              onChange={(e) => setReasoning(e.target.value.slice(0, 500))}
+              placeholder="e.g. Steel prices are spiking, so I think AeroDrone will drop next week."
+              rows={2}
+              className="nb-border bg-paper p-2 text-sm resize-none"
+            />
+          </div>
 
           {error && <p className="text-down font-bold text-sm">{error}</p>}
           {message && <p className="text-up font-bold text-sm">{message}</p>}

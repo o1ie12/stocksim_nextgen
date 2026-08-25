@@ -18,14 +18,27 @@ export interface StockMoveResult {
 }
 
 export interface NewsItem {
-  stockId: string | null; // null = market-wide
+  stockId: string | null; // null = market-wide / indirect (no stock revealed)
   headline: string;
+}
+
+export interface PlantedHint {
+  scenarioKey: string;
+  headline: string;
+  direction: "up" | "down";
+  stockIds: string[];
+}
+
+export interface PendingHint {
+  stockId: string;
+  direction: "up" | "down";
 }
 
 export interface WeekMoveResult {
   moves: StockMoveResult[];
   news: NewsItem[];
   novamedEvent: "spike" | "flop" | null;
+  plantedHint: PlantedHint | null;
 }
 
 export interface HoldingsSnapshotEntry {
@@ -37,6 +50,13 @@ export interface HoldingsSnapshotEntry {
 // ---------- random helpers ----------
 function randInRange(min: number, max: number): number {
   return min + Math.random() * (max - min);
+}
+
+// A hint-biased move: still a real random roll, just constrained to the
+// direction the planted headline pointed at, within the same magnitude
+// band boring weeks already use.
+function biasedRandInRange(direction: "up" | "down", magnitude = 5): number {
+  return direction === "up" ? randInRange(0.5, magnitude) : -randInRange(0.5, magnitude);
 }
 
 function applyPct(price: number, pct: number): number {
@@ -83,13 +103,59 @@ export function assignDipAndHype(
   return { dipStockId, hypeStockId };
 }
 
-// ---------- headline pools ----------
-const BORING_BLURBS = [
-  (name: string) => `${name} ticks up slightly on light trading.`,
-  (name: string) => `${name} drifts lower, nothing major behind it.`,
-  (name: string) => `${name} holds close to flat this week.`,
+// ---------- indirect news economy ----------
+// Each scenario names a real-world-feeling event but never the stock or
+// direction outright — a student has to connect it to a company via that
+// company's own sector/description (see stocksMeta.ts). The mapping here
+// is the only place the "answer" lives; nothing student-facing exposes it.
+// The event posts this week and its price consequence lands next roll.
+export interface NewsScenario {
+  key: string;
+  headline: string;
+  stockKeys: string[]; // 1-2 stocks this scenario is secretly tied to
+  direction: "up" | "down";
+}
+
+export const NEWS_SCENARIOS: NewsScenario[] = [
+  { key: "steel-shortage", headline: "Steel prices spike due to a supply shortage.", stockKeys: ["aerodrone", "voltup"], direction: "down" },
+  { key: "fashion-trend-viral", headline: "A new clothing trend is going viral with teens nationwide.", stockKeys: ["threadline"], direction: "up" },
+  { key: "cotton-shortage", headline: "This year's cotton harvest came in much smaller than expected.", stockKeys: ["threadline"], direction: "down" },
+  { key: "chip-shortage", headline: "A worldwide computer chip shortage is slowing down factories.", stockKeys: ["aerodrone", "pixelworks"], direction: "down" },
+  { key: "sugar-price-drop", headline: "Sugar prices dropped after a record harvest this year.", stockKeys: ["snackbox", "bobaco"], direction: "up" },
+  { key: "heat-wave", headline: "A major heat wave is sweeping across the country.", stockKeys: ["greengrid"], direction: "up" },
+  { key: "lithium-price-climb", headline: "Battery material prices are climbing as demand grows worldwide.", stockKeys: ["voltup"], direction: "down" },
+  { key: "cloud-outage", headline: "A major internet outage knocked popular websites offline for hours.", stockKeys: ["cloudnine"], direction: "down" },
+  { key: "solar-incentive", headline: "The government just announced new incentives for clean energy.", stockKeys: ["greengrid"], direction: "up" },
+  { key: "pet-adoption-boom", headline: "Pet adoptions are way up across the country this season.", stockKeys: ["petpal"], direction: "up" },
+  { key: "shipping-slowdown", headline: "A port slowdown is causing shipping delays and rising costs.", stockKeys: ["threadline", "snackbox"], direction: "down" },
+  { key: "game-hit", headline: "A new mobile game just hit #1 on download charts nationwide.", stockKeys: ["pixelworks"], direction: "up" },
+  { key: "packaging-cost-rise", headline: "Plastic packaging costs are rising across the industry.", stockKeys: ["snackbox", "bobaco"], direction: "down" },
+  { key: "grain-disruption", headline: "Bad weather disrupted farming in a major grain-growing region.", stockKeys: ["snackbox"], direction: "down" },
+  { key: "health-study-buzz", headline: "A big new health study is making national news this week.", stockKeys: ["novamed"], direction: "up" },
+  { key: "trial-delay", headline: "An unnamed lab reported a delay in one of its health trials.", stockKeys: ["novamed"], direction: "down" },
+  { key: "gaming-summer-slump", headline: "Kids are heading outdoors for summer, and screen time is dropping.", stockKeys: ["pixelworks"], direction: "down" },
+  { key: "vet-ingredient-trend", headline: "A vet-recommended new pet food ingredient is trending online.", stockKeys: ["petpal"], direction: "up" },
 ];
 
+// Picks a scenario not already used this game (falls back to allowing a
+// repeat once the whole pool has been used). Returns null only if none of
+// the scenario's stock keys match the current stock list, which shouldn't
+// happen with the fixed 10-company universe.
+export function pickNewsScenario(stocks: EngineStock[], usedKeys: string[]): PlantedHint | null {
+  const byKey = new Map(stocks.map((s) => [s.key, s]));
+  const usedSet = new Set(usedKeys);
+  const pool = NEWS_SCENARIOS.filter((s) => !usedSet.has(s.key));
+  const scenario = pick(pool.length > 0 ? pool : NEWS_SCENARIOS);
+
+  const stockIds = scenario.stockKeys
+    .map((k) => byKey.get(k)?.id)
+    .filter((id): id is string => Boolean(id));
+  if (stockIds.length === 0) return null;
+
+  return { scenarioKey: scenario.key, headline: scenario.headline, direction: scenario.direction, stockIds };
+}
+
+// ---------- headline pools (the explicit dip/hype/novamed storyline) ----------
 const DIP_BAD_NEWS = [
   (name: string) => `${name} tumbles after a rough week — investors are spooked.`,
   (name: string) => `${name} drops hard on disappointing news.`,
@@ -134,6 +200,8 @@ export function computeWeekMove(
   stocks: EngineStock[],
   dipStockId: string,
   hypeStockId: string,
+  pendingHints: PendingHint[] = [],
+  plantScenario: PlantedHint | null = null,
   novamedStockKey = "novamed"
 ): WeekMoveResult {
   const byId = new Map(stocks.map((s) => [s.id, s]));
@@ -141,6 +209,9 @@ export function computeWeekMove(
   const moves = new Map<string, number>(); // stockId -> pct
   const news: NewsItem[] = [];
   let novamedEvent: "spike" | "flop" | null = null;
+  // Stocks with a scripted narrative move this week — a pending hint should
+  // never override those, only "plain" stocks.
+  const excludedFromHints = new Set<string>();
 
   const setMove = (id: string, pct: number) => moves.set(id, pct);
 
@@ -153,9 +224,13 @@ export function computeWeekMove(
     case 4: {
       for (const s of stocks) setMove(s.id, 0);
       setMove(dipStockId, -randInRange(15, 20));
+      excludedFromHints.add(dipStockId);
       const others = stocks.filter((s) => s.id !== dipStockId && s.id !== hypeStockId);
       const other = others.length > 0 ? pick(others) : null;
-      if (other) setMove(other.id, randInRange(-6, 6));
+      if (other) {
+        setMove(other.id, randInRange(-6, 6));
+        excludedFromHints.add(other.id);
+      }
 
       const dip = byId.get(dipStockId)!;
       news.push({ stockId: dip.id, headline: pick(DIP_BAD_NEWS)(dip.name) });
@@ -166,6 +241,8 @@ export function computeWeekMove(
       for (const s of stocks) setMove(s.id, 0);
       setMove(dipStockId, randInRange(8, 10));
       setMove(hypeStockId, randInRange(5, 8));
+      excludedFromHints.add(dipStockId);
+      excludedFromHints.add(hypeStockId);
 
       const dip = byId.get(dipStockId)!;
       const hype = byId.get(hypeStockId)!;
@@ -178,12 +255,13 @@ export function computeWeekMove(
       const dipBase = moves.get(dipStockId) ?? 0;
       const compounded = (1 + dipBase / 100) * (1 + randInRange(3, 5) / 100) - 1;
       setMove(dipStockId, compounded * 100);
-      news.push({ stockId: null, headline: "Quiet week in the market — recovery holds." });
+      excludedFromHints.add(dipStockId);
       break;
     }
     case 7: {
       for (const s of stocks) setMove(s.id, 0);
       setMove(hypeStockId, randInRange(15, 20));
+      excludedFromHints.add(hypeStockId);
       const hype = byId.get(hypeStockId)!;
       news.push({ stockId: hype.id, headline: pick(HYPE_BREAKOUT)(hype.name) });
 
@@ -191,6 +269,7 @@ export function computeWeekMove(
         const spike = Math.random() < 0.5;
         novamedEvent = spike ? "spike" : "flop";
         setMove(novamed.id, spike ? randInRange(25, 35) : -randInRange(20, 30));
+        excludedFromHints.add(novamed.id);
         news.push({
           stockId: novamed.id,
           headline: spike ? pick(NOVAMED_SPIKE)(novamed.name) : pick(NOVAMED_FLOP)(novamed.name),
@@ -203,8 +282,8 @@ export function computeWeekMove(
         if (s.id !== hypeStockId) setMove(s.id, randInRange(-5, 5));
       }
       setMove(hypeStockId, -randInRange(5, 8));
+      excludedFromHints.add(hypeStockId);
       const hype = byId.get(hypeStockId)!;
-      news.push({ stockId: null, headline: "Quiet week overall." });
       news.push({ stockId: hype.id, headline: pick(HYPE_COOLDOWN)(hype.name) });
       break;
     }
@@ -217,17 +296,19 @@ export function computeWeekMove(
       throw new Error(`No scripted move defined for week ${newWeek}`);
   }
 
-  // Boring weeks (2, 3) get a couple of "notable mover" blurbs; quiet weeks
-  // (6, 8) intentionally stay minimal per the schedule ("recovery holds" /
-  // "pulls back" already cover it).
-  if (newWeek === 2 || newWeek === 3) {
-    const ranked = [...moves.entries()].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
-    const notable = ranked.slice(0, 2 + Math.round(Math.random()));
-    for (const [stockId] of notable) {
-      const s = byId.get(stockId)!;
-      news.push({ stockId: s.id, headline: pick(BORING_BLURBS)(s.name) });
-    }
+  // Apply any hint planted last week: bias the affected stock's roll toward
+  // the direction the headline pointed at, unless that stock already has a
+  // scripted narrative move of its own this week.
+  const freezeWeek = newWeek === 9;
+  for (const hint of pendingHints) {
+    if (excludedFromHints.has(hint.stockId)) continue;
+    if (!byId.has(hint.stockId)) continue;
+    setMove(hint.stockId, biasedRandInRange(hint.direction, freezeWeek ? 2 : 5));
   }
+
+  // Note: the planted-hint headline is intentionally NOT added to `news`
+  // here — the caller inserts it separately so it can capture that row's id
+  // and link it to the news_hints rows it creates from `plantedHint`.
 
   const results: StockMoveResult[] = stocks.map((s) => {
     const pct = moves.get(s.id) ?? 0;
@@ -240,7 +321,7 @@ export function computeWeekMove(
     };
   });
 
-  return { moves: results, news, novamedEvent };
+  return { moves: results, news, novamedEvent, plantedHint: plantScenario };
 }
 
 export const TOTAL_WEEKS = 9;

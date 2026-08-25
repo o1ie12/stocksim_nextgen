@@ -25,6 +25,8 @@ export default async function MarketPage() {
               key={s.id}
               stock={{ key: s.key, name: s.name, price: s.currentPrice, pctChange: s.pctChangeThisWeek }}
               color={s.color}
+              sector={s.sector}
+              description={s.description}
               history={s.history}
             />
           ))}

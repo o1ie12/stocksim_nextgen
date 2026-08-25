@@ -19,7 +19,15 @@ export default async function TeacherPage() {
     <>
       <Nav role="teacher" name={session.name} />
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-6">
-        <h1 className="font-display uppercase text-3xl tracking-tight">Teacher Panel</h1>
+        <div className="flex items-baseline justify-between flex-wrap gap-2">
+          <h1 className="font-display uppercase text-3xl tracking-tight">Teacher Panel</h1>
+          <a
+            href="/teacher/admin"
+            className="nb-border nb-shadow-sm nb-press bg-paper px-3 py-1.5 text-xs font-bold uppercase tracking-wide"
+          >
+            Admin Tools →
+          </a>
+        </div>
 
         <AdvanceWeekButton currentWeek={marketState.current_week} />
 

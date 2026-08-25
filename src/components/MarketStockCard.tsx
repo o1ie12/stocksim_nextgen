@@ -7,10 +7,14 @@ import { PriceChart, type PricePoint } from "./PriceChart";
 export function MarketStockCard({
   stock,
   color,
+  sector,
+  description,
   history,
 }: {
   stock: StockTileData;
   color: string;
+  sector: string;
+  description: string;
   history: PricePoint[];
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -22,10 +26,14 @@ export function MarketStockCard({
         onClick={() => setExpanded((e) => !e)}
         className="nb-border nb-shadow-sm nb-press bg-paper py-1.5 text-xs font-bold uppercase tracking-wide"
       >
-        {expanded ? "Hide chart" : "View chart"}
+        {expanded ? "Hide details" : "View details"}
       </button>
       {expanded ? (
-        <div className="nb-border nb-shadow bg-paper p-2">
+        <div className="nb-border nb-shadow bg-paper p-3 flex flex-col gap-3">
+          <div>
+            <span className="text-[10px] uppercase tracking-widest font-bold opacity-60">{sector}</span>
+            <p className="text-sm mt-0.5">{description}</p>
+          </div>
           <PriceChart data={history} color={color} variant="full" />
         </div>
       ) : (

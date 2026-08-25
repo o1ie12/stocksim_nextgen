@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   const stockId = body?.stockId as string | undefined;
   const action = body?.action as "buy" | "sell" | undefined;
   const shares = Number(body?.shares);
+  const reasoning = typeof body?.reasoning === "string" ? body.reasoning.trim().slice(0, 500) : null;
 
   if (!stockId || (action !== "buy" && action !== "sell") || !Number.isInteger(shares) || shares <= 0) {
     return NextResponse.json({ error: "Invalid trade request" }, { status: 400 });
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
     p_stock_id: stockId,
     p_action: action,
     p_shares: shares,
+    p_reasoning: reasoning || null,
   });
 
   if (error) {
