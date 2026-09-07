@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { getStocksWithHistory } from "@/lib/gameData";
+import { STOCK_TICKER } from "@/lib/stocksMeta";
 import { Nav } from "@/components/Nav";
 import { MarketStockCard } from "@/components/MarketStockCard";
 
@@ -20,7 +21,14 @@ export default async function MarketPage() {
           {stocks.map((s) => (
             <MarketStockCard
               key={s.id}
-              stock={{ key: s.key, name: s.name, price: s.currentPrice, pctChange: s.pctChangeRecent }}
+              stock={{
+                key: s.key,
+                name: s.name,
+                ticker: STOCK_TICKER[s.key],
+                price: s.currentPrice,
+                pctChange: s.pctChangeRecent,
+                dollarChange: s.dollarChangeRecent,
+              }}
               color={s.color}
               sector={s.sector}
               description={s.description}

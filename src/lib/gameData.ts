@@ -17,6 +17,7 @@ export interface StockWithChange {
   currentPrice: number;
   startingPrice: number;
   pctChangeRecent: number; // vs. the previous recorded price, not a "week"
+  dollarChangeRecent: number;
   history: PricePointDisplay[];
 }
 
@@ -35,6 +36,7 @@ export async function getStocksWithHistory(): Promise<{ stocks: StockWithChange[
       .map((h) => ({ price: h.price as number, recordedAt: h.recorded_at as string }));
     const previous = series.length >= 2 ? series[series.length - 2] : null;
     const pctChangeRecent = previous ? ((s.current_price - previous.price) / previous.price) * 100 : 0;
+    const dollarChangeRecent = previous ? s.current_price - previous.price : 0;
 
     return {
       id: s.id,
@@ -46,6 +48,7 @@ export async function getStocksWithHistory(): Promise<{ stocks: StockWithChange[
       currentPrice: s.current_price,
       startingPrice: s.starting_price,
       pctChangeRecent: Math.round(pctChangeRecent * 10) / 10,
+      dollarChangeRecent,
       history: series,
     };
   });

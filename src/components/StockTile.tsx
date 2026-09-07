@@ -7,8 +7,10 @@ import { ChangeBadge } from "./ChangeBadge";
 export interface StockTileData {
   key: StockKey;
   name: string;
+  ticker?: string;
   price: number;
   pctChange: number | null;
+  dollarChange?: number | null;
   flash?: "up" | "down" | null;
 }
 
@@ -21,12 +23,19 @@ export function StockTile({ stock, href }: { stock: StockTileData; href?: string
     <div
       className={`nb-border nb-shadow ${STOCK_BG_CLASS[stock.key]} ${flashClass} flex flex-col justify-between gap-3 p-4 h-full`}
     >
-      <div className="font-display uppercase tracking-tight text-lg leading-none text-ink truncate">
-        {stock.name}
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="font-display uppercase tracking-tight text-lg leading-none text-ink truncate">
+          {stock.name}
+        </div>
+        {stock.ticker && (
+          <div className="font-mono-num text-xs font-bold text-ink/60 shrink-0">{stock.ticker}</div>
+        )}
       </div>
       <div className="flex flex-col items-start gap-1.5">
         <div className="font-mono-num font-bold text-2xl text-ink">{money(stock.price)}</div>
-        {stock.pctChange !== null && <ChangeBadge value={stock.pctChange} />}
+        {stock.pctChange !== null && (
+          <ChangeBadge value={stock.pctChange} dollarValue={stock.dollarChange ?? undefined} />
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { money, shares as fmtShares } from "@/lib/format";
 import { STOCK_TEXT_CLASS } from "@/lib/stockColorClasses";
-import type { StockKey } from "@/lib/stocksMeta";
+import { STOCK_TICKER, type StockKey } from "@/lib/stocksMeta";
 
 export interface HoldingRowData {
   key: StockKey;
@@ -35,7 +35,7 @@ export function HoldingsTable({ rows }: { rows: HoldingRowData[] }) {
           {rows.map((r) => (
             <tr key={r.key} className="border-b border-ink/20 last:border-0">
               <td className={`px-4 py-3 font-display uppercase tracking-tight ${STOCK_TEXT_CLASS[r.key]}`}>
-                {r.name}
+                {r.name} <span className="font-mono-num text-xs opacity-60">{STOCK_TICKER[r.key]}</span>
               </td>
               <td className="px-4 py-3 text-right font-mono-num">{fmtShares(r.shares)}</td>
               <td className="px-4 py-3 text-right font-mono-num">{money(r.currentPrice)}</td>

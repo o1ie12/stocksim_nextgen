@@ -16,6 +16,7 @@ export type StockKey =
 export interface StockMeta {
   key: StockKey;
   name: string;
+  ticker: string;
   startingPrice: number;
   personality: string;
   color: string;
@@ -31,6 +32,7 @@ export const STOCKS_META: StockMeta[] = [
   {
     key: "snackbox",
     name: "SnackBox",
+    ticker: "SNAK",
     startingPrice: 60,
     personality: "cheap, boring, reliable",
     color: "#F4A300",
@@ -42,6 +44,7 @@ export const STOCKS_META: StockMeta[] = [
   {
     key: "threadline",
     name: "ThreadLine",
+    ticker: "THRD",
     startingPrice: 80,
     personality: "trendy, hype-driven spikes",
     color: "#E63946",
@@ -53,6 +56,7 @@ export const STOCKS_META: StockMeta[] = [
   {
     key: "petpal",
     name: "PetPal",
+    ticker: "PETP",
     startingPrice: 100,
     personality: "steady with seasonal bumps",
     color: "#588157",
@@ -64,6 +68,7 @@ export const STOCKS_META: StockMeta[] = [
   {
     key: "bobaco",
     name: "BoBaCo",
+    ticker: "BOBA",
     startingPrice: 130,
     personality: "steady grower, low drama",
     color: "#A26769",
@@ -75,6 +80,7 @@ export const STOCKS_META: StockMeta[] = [
   {
     key: "aerodrone",
     name: "AeroDrone",
+    ticker: "AERO",
     startingPrice: 160,
     personality: "high-risk, biggest swings",
     color: "#3A86FF",
@@ -86,6 +92,7 @@ export const STOCKS_META: StockMeta[] = [
   {
     key: "pixelworks",
     name: "PixelWorks",
+    ticker: "PIXL",
     startingPrice: 200,
     personality: "volatile, swings hard both ways",
     color: "#8338EC",
@@ -97,6 +104,7 @@ export const STOCKS_META: StockMeta[] = [
   {
     key: "novamed",
     name: "NovaMed",
+    ticker: "NOVA",
     startingPrice: 220,
     personality: "biotech moonshot, speculative, spikes or flops hard",
     color: "#FF006E",
@@ -108,6 +116,7 @@ export const STOCKS_META: StockMeta[] = [
   {
     key: "greengrid",
     name: "GreenGrid",
+    ticker: "GRID",
     startingPrice: 240,
     personality: "slow-build, pays off late",
     color: "#2A9D8F",
@@ -119,6 +128,7 @@ export const STOCKS_META: StockMeta[] = [
   {
     key: "voltup",
     name: "VoltUp",
+    ticker: "VOLT",
     startingPrice: 280,
     personality: "big-money feel, high starting price",
     color: "#FB8500",
@@ -130,6 +140,7 @@ export const STOCKS_META: StockMeta[] = [
   {
     key: "cloudnine",
     name: "CloudNine",
+    ticker: "CLD9",
     startingPrice: 330,
     personality: 'the "blue chip," slow and steady',
     color: "#457B9D",
@@ -143,3 +154,10 @@ export const STOCKS_META: StockMeta[] = [
 export const FALLBACK_DIP_KEY: StockKey = "snackbox";
 export const FALLBACK_HYPE_KEY: StockKey = "threadline";
 export const FALLBACK_HYPE_KEY_2: StockKey = "pixelworks"; // used if fallback hype (threadline) is itself the dip stock
+
+// Ticker symbols, like a real exchange — shown next to the full name
+// wherever a stock appears in detail. Pure static data (no DB round trip
+// needed), safe to import from client or server code.
+export const STOCK_TICKER: Record<StockKey, string> = Object.fromEntries(
+  STOCKS_META.map((s) => [s.key, s.ticker])
+) as Record<StockKey, string>;

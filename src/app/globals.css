@@ -86,3 +86,21 @@ body {
   outline: 3px solid var(--color-ink);
   outline-offset: 2px;
 }
+
+/* Scrolling ticker tape: track holds two copies of the same list back to
+   back, and scrolling exactly -50% loops seamlessly. */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker-scroll 40s linear infinite;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+}

@@ -1,4 +1,4 @@
-import { money, pct } from "@/lib/format";
+import { money, pct, signedMoney } from "@/lib/format";
 
 export function PortfolioHero({
   totalValue,
@@ -11,7 +11,8 @@ export function PortfolioHero({
   holdingsValue: number;
   startingCash?: number;
 }) {
-  const gain = ((totalValue - startingCash) / startingCash) * 100;
+  const dollarGain = totalValue - startingCash;
+  const gain = (dollarGain / startingCash) * 100;
   const isUp = gain > 0;
   const isFlat = gain === 0;
 
@@ -21,7 +22,7 @@ export function PortfolioHero({
       <div className="flex items-baseline gap-4 flex-wrap">
         <span className="font-display text-6xl sm:text-7xl leading-none tracking-tight">{money(totalValue)}</span>
         <span className={`font-mono-num font-bold text-lg ${isFlat ? "text-ink" : isUp ? "text-up" : "text-down"}`}>
-          {isFlat ? "▪" : isUp ? "▲" : "▼"} {pct(gain)}
+          {isFlat ? "▪" : isUp ? "▲" : "▼"} {signedMoney(dollarGain)} ({pct(gain)})
         </span>
       </div>
       <div className="flex gap-6 mt-3 text-sm">

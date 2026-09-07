@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { TickerTape } from "./TickerTape";
 
 interface RosterEntry {
   id: string;
@@ -88,8 +89,10 @@ export function LoginClient() {
   const list = role === "player" ? players : teachers;
 
   return (
-    <main className="flex-1 flex items-center justify-center p-6">
-      <div className="w-full max-w-2xl">
+    <>
+      <TickerTape />
+      <main className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-2xl">
         <h1 className="font-display uppercase text-4xl text-center mb-2 tracking-tight">
           NextGen Exchange
         </h1>
@@ -195,6 +198,7 @@ export function LoginClient() {
           </div>
         )}
       </div>
-    </main>
+      </main>
+    </>
   );
 }

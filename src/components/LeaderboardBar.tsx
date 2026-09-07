@@ -1,6 +1,8 @@
 import { money } from "@/lib/format";
 import { ChangeBadge } from "./ChangeBadge";
 
+const STARTING_CASH = 5000;
+
 export interface LeaderboardRow {
   id: string;
   name: string;
@@ -34,7 +36,7 @@ export function LeaderboardBar({ row, rank, maxValue }: { row: LeaderboardRow; r
             >
               {money(row.totalValue)}
             </span>
-            <ChangeBadge value={row.pctGain} size="sm" />
+            <ChangeBadge value={row.pctGain} dollarValue={row.totalValue - STARTING_CASH} size="sm" />
           </div>
         </div>
       </div>
