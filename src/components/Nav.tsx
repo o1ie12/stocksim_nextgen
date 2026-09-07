@@ -31,7 +31,7 @@ export function Nav({ role, name }: { role: "player" | "teacher"; name: string }
   return (
     <nav className="nb-border border-x-0 border-t-0 bg-paper sticky top-0 z-10">
       <div className="max-w-6xl mx-auto flex items-center gap-1 px-4 py-3 flex-wrap">
-        <span className="font-display uppercase text-lg tracking-tight mr-4">Founder&apos;s Track</span>
+        <span className="font-display uppercase text-lg tracking-tight mr-4">NextGen Exchange</span>
         {links.map((l) => (
           <Link
             key={l.href}

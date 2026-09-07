@@ -1,4 +1,4 @@
-# Founder's Track Stock Simulator
+# NextGen Exchange
 
 Stock market simulator for an after-school business club's advanced track. Fully manual: a teacher changes a stock's price or adds a news headline whenever they want, from Admin Tools — no scripted schedule, no auto-rolled prices, no week counter. Students trade freely at any time with fake money.
 

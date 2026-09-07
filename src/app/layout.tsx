@@ -21,8 +21,8 @@ const monoFont = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Founder's Track Market",
-  description: "Stock market simulator for the Founder's Track business club",
+  title: "NextGen Exchange",
+  description: "Stock market simulator for an after-school business club",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

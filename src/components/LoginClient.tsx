@@ -91,7 +91,7 @@ export function LoginClient() {
     <main className="flex-1 flex items-center justify-center p-6">
       <div className="w-full max-w-2xl">
         <h1 className="font-display uppercase text-4xl text-center mb-2 tracking-tight">
-          Founder&apos;s Track Market
+          NextGen Exchange
         </h1>
         <p className="text-center text-sm uppercase tracking-wide font-bold mb-8">Sign in to trade</p>
 
