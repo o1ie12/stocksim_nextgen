@@ -53,8 +53,8 @@ export function ResetGameButton() {
       {!confirming ? (
         <>
           <p className="text-sm">
-            Wipes prices, cash, holdings, and news back to a clean Week 1 — for starting a new group. Student and
-            teacher logins are not affected.
+            Wipes prices, cash, holdings, news, and the trade log back to a clean slate — for starting a new group.
+            Student and teacher logins are not affected.
           </p>
           <button
             onClick={open}
@@ -67,7 +67,8 @@ export function ResetGameButton() {
         <div className="flex flex-col gap-3">
           <p className="text-sm font-bold">
             This is irreversible: every stock resets to its starting price, all cash resets to $5,000, all holdings
-            are cleared, and the news log is wiped. Type <span className="font-mono-num">RESET</span> to confirm.
+            are cleared, and the news log and trade log are wiped. Type <span className="font-mono-num">RESET</span> to
+            confirm.
           </p>
           <input
             type="text"

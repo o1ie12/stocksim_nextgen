@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   const { error } = await supabaseAdmin.rpc("reset_game");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await logAdminAction(teacher.id, teacher.name, "Reset the entire game to Week 1");
+  await logAdminAction(teacher.id, teacher.name, "Reset the entire game to a clean slate");
 
   return NextResponse.json({ ok: true });
 }
