@@ -6,9 +6,9 @@ import { ConflictBanner } from "./ConflictBanner";
 
 export interface AdminNewsItem {
   id: string;
-  weekNumber: number;
   headline: string;
   stockName: string | null;
+  createdAt: string;
 }
 
 export interface AdminStockOption {
@@ -16,19 +16,26 @@ export interface AdminStockOption {
   name: string;
 }
 
+function formatWhen(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function AdminNewsEditor({ news, stocks }: { news: AdminNewsItem[]; stocks: AdminStockOption[] }) {
   const router = useRouter();
 
-  const [newWeek, setNewWeek] = useState("1");
   const [newStockId, setNewStockId] = useState("");
   const [newHeadline, setNewHeadline] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [addLoading, setAddLoading] = useState(false);
 
   async function addNews() {
-    const weekNumber = Math.floor(Number(newWeek));
-    if (!Number.isInteger(weekNumber) || weekNumber < 1 || !newHeadline.trim()) {
-      setAddError("Need a week number and a headline");
+    if (!newHeadline.trim()) {
+      setAddError("Need a headline");
       return;
     }
     setAddLoading(true);
@@ -37,7 +44,7 @@ export function AdminNewsEditor({ news, stocks }: { news: AdminNewsItem[]; stock
       const res = await fetch("/api/admin/news", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekNumber, stockId: newStockId || null, headline: newHeadline.trim() }),
+        body: JSON.stringify({ stockId: newStockId || null, headline: newHeadline.trim() }),
       });
       const data = await res.json();
       if (!res.ok) setAddError(data.error ?? "Failed");
@@ -57,13 +64,6 @@ export function AdminNewsEditor({ news, stocks }: { news: AdminNewsItem[]; stock
       <div className="nb-border bg-paper p-3 flex flex-col gap-2">
         <span className="text-xs uppercase tracking-widest font-bold">Add headline</span>
         <div className="flex flex-wrap gap-2 items-center">
-          <input
-            type="number"
-            value={newWeek}
-            onChange={(e) => setNewWeek(e.target.value)}
-            className="nb-border w-16 px-2 py-1.5 font-mono-num text-sm"
-            aria-label="Week number"
-          />
           <select
             value={newStockId}
             onChange={(e) => setNewStockId(e.target.value)}
@@ -162,7 +162,7 @@ function NewsRow({ item }: { item: AdminNewsItem }) {
     <div className="flex flex-col gap-1.5">
       <div className="nb-border bg-paper p-2 flex flex-wrap items-center gap-2">
         <span className="text-[10px] font-bold uppercase tracking-wide nb-border bg-ink text-paper px-1.5 py-0.5 shrink-0">
-          Wk {item.weekNumber}
+          {formatWhen(item.createdAt)}
         </span>
         <span className="text-[10px] font-bold uppercase tracking-wide opacity-60 shrink-0 w-20 truncate">
           {item.stockName ?? "Market"}

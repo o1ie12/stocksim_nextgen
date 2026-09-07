@@ -1,6 +1,12 @@
 -- Founder's Track Stock Simulator — schema
 -- Run this once in the Supabase SQL editor (Project > SQL Editor > New query).
 -- Safe to re-run: uses IF NOT EXISTS / drop-and-recreate for policies.
+--
+-- Fully manual mode: there is no week counter, no scripted price engine, no
+-- auto-generated news. A teacher changes a stock's price or adds a news
+-- headline whenever they want, from Admin Tools — that's the entire game
+-- loop. Every price change is its own price_history row, which is what
+-- drives the price charts.
 
 create extension if not exists pgcrypto;
 
@@ -48,38 +54,28 @@ create table if not exists holdings (
 );
 
 -- ---------- price_history ----------
+-- One row per price change (not per week — there are no weeks). The
+-- starting price is seeded as the first row; every admin_set_price call
+-- appends another. Charts read this ordered by recorded_at.
 create table if not exists price_history (
   id uuid primary key default gen_random_uuid(),
   stock_id uuid not null references stocks(id) on delete cascade,
-  week_number integer not null,
   price integer not null,
-  recorded_at timestamptz not null default now(),
-  unique (stock_id, week_number)
+  recorded_at timestamptz not null default now()
 );
 
 -- ---------- news_log ----------
 create table if not exists news_log (
   id uuid primary key default gen_random_uuid(),
-  week_number integer not null,
   stock_id uuid references stocks(id) on delete set null,
   headline text not null,
   created_at timestamptz not null default now()
 );
 
--- ---------- market_state (single row) ----------
-create table if not exists market_state (
-  id integer primary key default 1 check (id = 1),
-  current_week integer not null default 1,
-  dip_stock_id uuid references stocks(id),
-  hype_stock_id uuid references stocks(id),
-  novamed_event text, -- 'spike' | 'flop', set during week 7 advance
-  updated_at timestamptz not null default now()
-);
-
 -- ---------- transactions ----------
 -- One row per buy/sell, with the student's own reasoning captured at the
 -- moment of the trade. This is the raw material for the end-of-program
--- report deliverable — see the per-student CSV export in the teacher panel.
+-- report deliverable — see the per-student CSV export in Admin Tools.
 create table if not exists transactions (
   id uuid primary key default gen_random_uuid(),
   player_id uuid not null references players(id) on delete cascade,
@@ -88,27 +84,11 @@ create table if not exists transactions (
   shares integer not null,
   price integer not null,
   reasoning text,
-  week_number integer not null,
   created_at timestamptz not null default now()
 );
 
--- ---------- news_hints ----------
--- Indirect news: a headline posted this week names no stock and no
--- direction. Behind the scenes it's tied to 1-2 stocks and a direction
--- here, which gets applied to bias next week's roll for those stocks, then
--- marked consumed. Never exposed to students; teacher panel can show it.
-create table if not exists news_hints (
-  id uuid primary key default gen_random_uuid(),
-  news_log_id uuid references news_log(id) on delete cascade,
-  stock_id uuid not null references stocks(id) on delete cascade,
-  direction text not null check (direction in ('up', 'down')),
-  scenario_key text not null,
-  planted_week integer not null,
-  consumed_at timestamptz
-);
-
 -- ---------- admin_actions ----------
--- Audit trail for manual teacher overrides (price/cash/holdings/news edits).
+-- Audit trail for every teacher edit (price/cash/holdings/news/reset).
 create table if not exists admin_actions (
   id uuid primary key default gen_random_uuid(),
   teacher_id uuid references teachers(id) on delete set null,
@@ -127,9 +107,7 @@ alter table stocks enable row level security;
 alter table holdings enable row level security;
 alter table price_history enable row level security;
 alter table news_log enable row level security;
-alter table market_state enable row level security;
 alter table transactions enable row level security;
-alter table news_hints enable row level security;
 alter table admin_actions enable row level security;
 
 -- ---------- execute_trade ----------
@@ -151,7 +129,6 @@ declare
   v_cash integer;
   v_shares integer;
   v_cost integer;
-  v_week integer;
 begin
   if p_shares is null or p_shares <= 0 then
     raise exception 'shares must be a positive whole number';
@@ -194,23 +171,21 @@ begin
     raise exception 'invalid action: %', p_action;
   end if;
 
-  select current_week into v_week from market_state where id = 1;
-
-  insert into transactions (player_id, stock_id, action, shares, price, reasoning, week_number)
-    values (p_player_id, p_stock_id, p_action, p_shares, v_price, p_reasoning, coalesce(v_week, 1));
+  insert into transactions (player_id, stock_id, action, shares, price, reasoning)
+    values (p_player_id, p_stock_id, p_action, p_shares, v_price, p_reasoning);
 
   return json_build_object('ok', true, 'price', v_price, 'cost', v_cost);
 end;
 $$;
 
 -- ---------- reset_game ----------
--- Resets shared game state back to a clean Week 1: stocks to starting
--- price, week counter to 1, dip/hype/NovaMed cleared (re-resolves after the
--- next Advance Week past Week 1), all holdings cleared, all cash reset to
--- $5,000, price history trimmed back to the Week 1 starting point, and the
--- news log cleared (cascades to news_hints). Player/teacher accounts
--- (names, PINs) are untouched — this is a game-state reset, not an account
--- wipe. Meant to be run any number of times, between semesters/groups.
+-- Resets shared game state back to a clean slate: stocks to starting
+-- price (with a fresh price_history baseline), all holdings cleared, all
+-- cash reset to $5,000, news log cleared, and the trade/reasoning log
+-- cleared too (a new group's report shouldn't include a previous group's
+-- trades). Player/teacher accounts (names, PINs) are untouched — this is a
+-- game-state reset, not an account wipe. Safe to run any number of times,
+-- between semesters/groups.
 create or replace function reset_game() returns json
 language plpgsql
 as $$
@@ -222,11 +197,13 @@ begin
   update stocks set current_price = starting_price where true;
   delete from holdings where true;
   update players set cash = 5000 where true;
-  delete from price_history where week_number > 1;
+  delete from price_history where true;
   delete from news_log where true;
-  update market_state
-    set current_week = 1, dip_stock_id = null, hype_stock_id = null, novamed_event = null, updated_at = now()
-    where id = 1;
+  delete from transactions where true;
+
+  insert into price_history (stock_id, price)
+    select id, starting_price from stocks;
+
   return json_build_object('ok', true);
 end;
 $$;
@@ -235,10 +212,12 @@ $$;
 -- Compare-and-swap versions of the Admin Tools overrides: each locks the
 -- row, checks the caller's expected (page-loaded) value against the real
 -- current value, and only applies the write if they still match — so a
--- teacher's page that's gone stale (someone else traded, advanced the
--- week, or made another edit while it sat open) can never silently
--- overwrite a change it never saw. On mismatch, returns the real current
--- value instead of applying anything.
+-- teacher's page that's gone stale (someone else traded, or made another
+-- edit while it sat open) can never silently overwrite a change it never
+-- saw. On mismatch, returns the real current value instead of applying
+-- anything. admin_set_price also appends a price_history row on success —
+-- with no more automatic weekly snapshots, every price chart data point
+-- comes from here.
 create or replace function admin_set_price(
   p_stock_id uuid,
   p_expected_price integer,
@@ -260,6 +239,8 @@ begin
   end if;
 
   update stocks set current_price = p_new_price where id = p_stock_id;
+  insert into price_history (stock_id, price) values (p_stock_id, p_new_price);
+
   return json_build_object('ok', true, 'name', v_name);
 end;
 $$;

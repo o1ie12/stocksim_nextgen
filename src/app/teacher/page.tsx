@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { getMarketState, getAllPortfoliosForTeacher } from "@/lib/gameData";
+import { getAllPortfoliosForTeacher } from "@/lib/gameData";
 import { Nav } from "@/components/Nav";
-import { AdvanceWeekButton } from "@/components/AdvanceWeekButton";
 import { money, shares as fmtShares } from "@/lib/format";
 import { STOCK_BG_CLASS } from "@/lib/stockColorClasses";
 import { ResetPinButton } from "@/components/ResetPinButton";
@@ -13,7 +12,7 @@ export default async function TeacherPage() {
   if (!session) redirect("/login");
   if (session.role !== "teacher") redirect("/dashboard");
 
-  const [marketState, portfolios] = await Promise.all([getMarketState(), getAllPortfoliosForTeacher()]);
+  const portfolios = await getAllPortfoliosForTeacher();
   const sorted = [...portfolios].sort((a, b) => b.totalValue - a.totalValue);
 
   return (
@@ -24,13 +23,11 @@ export default async function TeacherPage() {
           <h1 className="font-display uppercase text-3xl tracking-tight">Teacher Panel</h1>
           <a
             href="/teacher/admin"
-            className="nb-border nb-shadow-sm nb-press bg-paper px-3 py-1.5 text-xs font-bold uppercase tracking-wide"
+            className="nb-border nb-shadow nb-press bg-ink text-paper px-4 py-2 text-sm font-bold uppercase tracking-wide"
           >
-            Admin Tools →
+            Change Prices &amp; News →
           </a>
         </div>
-
-        <AdvanceWeekButton currentWeek={marketState.current_week} />
 
         <div className="flex flex-col gap-3">
           <span className="text-xs uppercase tracking-widest font-bold">All Players</span>

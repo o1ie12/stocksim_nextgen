@@ -1,22 +1,20 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { getAdminEditorData, getNews, getAdminActions, getNewsHintsForTeacher } from "@/lib/gameData";
+import { getAdminEditorData, getNews, getAdminActions } from "@/lib/gameData";
 import { Nav } from "@/components/Nav";
 import { AdminPriceEditor } from "@/components/admin/AdminPriceEditor";
 import { AdminPlayerEditor } from "@/components/admin/AdminPlayerEditor";
 import { AdminNewsEditor } from "@/components/admin/AdminNewsEditor";
-import { STOCK_TEXT_CLASS } from "@/lib/stockColorClasses";
 
 export default async function TeacherAdminPage() {
   const session = await getSession();
   if (!session) redirect("/login");
   if (session.role !== "teacher") redirect("/dashboard");
 
-  const [{ stocks, players, holdingsByPlayer }, news, adminActions, newsHints] = await Promise.all([
+  const [{ stocks, players, holdingsByPlayer }, news, adminActions] = await Promise.all([
     getAdminEditorData(),
     getNews(),
     getAdminActions(),
-    getNewsHintsForTeacher(),
   ]);
 
   return (
@@ -33,8 +31,8 @@ export default async function TeacherAdminPage() {
           </a>
         </div>
         <p className="text-sm -mt-6 opacity-70">
-          These are direct overrides — for fixing mistakes or crafting a scenario, not everyday use. Every change
-          here is logged below with who did it and when.
+          This is the whole game loop: change a stock&apos;s price or add a news headline whenever you want. Every
+          change here is logged below with who did it and when.
         </p>
 
         <section className="flex flex-col gap-3">
@@ -56,7 +54,7 @@ export default async function TeacherAdminPage() {
             News Log
           </h2>
           <AdminNewsEditor
-            news={news.map((n) => ({ id: n.id, weekNumber: n.weekNumber, headline: n.headline, stockName: n.stockName }))}
+            news={news.map((n) => ({ id: n.id, headline: n.headline, stockName: n.stockName, createdAt: n.createdAt }))}
             stocks={stocks}
           />
         </section>
@@ -79,45 +77,6 @@ export default async function TeacherAdminPage() {
                 {p.name} ↓
               </a>
             ))}
-          </div>
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <h2 className="font-display uppercase text-xl tracking-tight border-b-[3px] border-ink pb-1">
-            Indirect News Mapping <span className="font-body normal-case text-xs font-normal opacity-60">(never shown to students)</span>
-          </h2>
-          <div className="nb-border bg-paper overflow-x-auto">
-            <table className="w-full text-sm min-w-[520px]">
-              <thead>
-                <tr className="border-b-[3px] border-ink text-xs uppercase tracking-widest">
-                  <th className="text-left px-3 py-2">Week</th>
-                  <th className="text-left px-3 py-2">Headline</th>
-                  <th className="text-left px-3 py-2">Actually affects</th>
-                  <th className="text-left px-3 py-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {newsHints.map((h) => (
-                  <tr key={h.id} className="border-b border-ink/20 last:border-0">
-                    <td className="px-3 py-2 font-mono-num">{h.plantedWeek}</td>
-                    <td className="px-3 py-2">{h.headline}</td>
-                    <td className={`px-3 py-2 font-bold ${STOCK_TEXT_CLASS[h.stockKey]}`}>
-                      {h.stockName} ({h.direction === "up" ? "▲ up" : "▼ down"})
-                    </td>
-                    <td className="px-3 py-2 text-xs uppercase tracking-wide font-bold">
-                      {h.consumedAt ? "Resolved" : "Pending next roll"}
-                    </td>
-                  </tr>
-                ))}
-                {newsHints.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-3 py-4 text-center text-xs uppercase tracking-wide font-bold">
-                      No indirect news planted yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
           </div>
         </section>
 

@@ -104,22 +104,7 @@ async function seedStocks() {
   );
 }
 
-async function seedMarketStateAndHistory() {
-  const { data: ms, error: msError } = await supabase
-    .from("market_state")
-    .select("id")
-    .eq("id", 1)
-    .maybeSingle();
-  if (msError) throw msError;
-
-  if (!ms) {
-    const { error } = await supabase.from("market_state").insert({ id: 1, current_week: 1 });
-    if (error) throw error;
-    console.log("market_state: initialized at week 1.");
-  } else {
-    console.log("market_state: already initialized, left as-is.");
-  }
-
+async function seedPriceHistoryAndNews() {
   const { data: stocks, error: stocksError } = await supabase
     .from("stocks")
     .select("id, starting_price");
@@ -127,38 +112,35 @@ async function seedMarketStateAndHistory() {
 
   const { data: existingHistory, error: historyError } = await supabase
     .from("price_history")
-    .select("stock_id")
-    .eq("week_number", 1);
+    .select("stock_id");
   if (historyError) throw historyError;
   const existingHistoryStockIds = new Set((existingHistory ?? []).map((r) => r.stock_id));
 
   const historyToInsert = (stocks ?? [])
     .filter((s) => !existingHistoryStockIds.has(s.id))
-    .map((s) => ({ stock_id: s.id, week_number: 1, price: s.starting_price }));
+    .map((s) => ({ stock_id: s.id, price: s.starting_price }));
 
   if (historyToInsert.length > 0) {
     const { error } = await supabase.from("price_history").insert(historyToInsert);
     if (error) throw error;
   }
-  console.log(`price_history (week 1): ${historyToInsert.length} rows created.`);
+  console.log(`price_history: ${historyToInsert.length} baseline rows created.`);
 
   const { data: existingNews, error: newsError } = await supabase
     .from("news_log")
     .select("id")
-    .eq("week_number", 1)
     .is("stock_id", null);
   if (newsError) throw newsError;
 
   if (!existingNews || existingNews.length === 0) {
     const { error } = await supabase.from("news_log").insert({
-      week_number: 1,
       stock_id: null,
       headline: "Market opens! 10 companies are live for trading.",
     });
     if (error) throw error;
-    console.log("news_log: week 1 IPO headline created.");
+    console.log("news_log: IPO headline created.");
   } else {
-    console.log("news_log: week 1 headline already present, left as-is.");
+    console.log("news_log: market-wide headline already present, left as-is.");
   }
 }
 
@@ -174,7 +156,7 @@ async function main() {
   await seedAccounts("teachers", roster.teachers, newCreds);
   await seedAccounts("players", roster.students, newCreds);
   await seedStocks();
-  await seedMarketStateAndHistory();
+  await seedPriceHistoryAndNews();
 
   if (newCreds.length > 0) {
     const lines = ["Newly created logins (PINs only ever shown once — store this securely):", ""];

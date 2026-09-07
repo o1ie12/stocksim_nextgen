@@ -8,20 +8,17 @@ export async function POST(req: Request) {
   if (!teacher) return NextResponse.json({ error: "Teachers only" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const weekNumber = Number(body?.weekNumber);
   const headline = typeof body?.headline === "string" ? body.headline.trim() : "";
   const stockId = (body?.stockId as string | null) ?? null;
 
-  if (!Number.isInteger(weekNumber) || weekNumber < 1 || !headline) {
-    return NextResponse.json({ error: "Need a valid week number and a headline" }, { status: 400 });
+  if (!headline) {
+    return NextResponse.json({ error: "Need a headline" }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin
-    .from("news_log")
-    .insert({ week_number: weekNumber, stock_id: stockId, headline });
+  const { error } = await supabaseAdmin.from("news_log").insert({ stock_id: stockId, headline });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await logAdminAction(teacher.id, teacher.name, `Added news headline for week ${weekNumber}: "${headline}"`);
+  await logAdminAction(teacher.id, teacher.name, `Added news headline: "${headline}"`);
 
   return NextResponse.json({ ok: true });
 }

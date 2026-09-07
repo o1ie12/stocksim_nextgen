@@ -50,8 +50,8 @@ export function AdminPlayerEditor({
         <>
           {/* Keying on cash too forces a remount (fresh initial value)
               whenever it changes underneath us — switching players, or this
-              page sitting open across a trade/week-advance/other edit — so
-              "Save" can never silently replay a stale number. */}
+              page sitting open across a trade/another edit — so "Save" can
+              never silently replay a stale number. */}
           <CashEditor key={`${player.id}-${player.cash}`} playerId={player.id} initialCash={player.cash} />
 
           <div className="grid sm:grid-cols-2 gap-2">

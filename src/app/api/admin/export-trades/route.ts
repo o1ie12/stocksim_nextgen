@@ -16,7 +16,6 @@ export async function GET(req: Request) {
 
   const csv = toCsv(
     transactions.map((t) => ({
-      week: t.weekNumber,
       date: t.createdAt,
       stock: t.stockName,
       action: t.action,

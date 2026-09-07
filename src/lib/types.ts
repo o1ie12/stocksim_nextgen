@@ -35,26 +35,15 @@ export interface HoldingRow {
 export interface PriceHistoryRow {
   id: string;
   stock_id: string;
-  week_number: number;
   price: number;
   recorded_at: string;
 }
 
 export interface NewsLogRow {
   id: string;
-  week_number: number;
   stock_id: string | null;
   headline: string;
   created_at: string;
-}
-
-export interface MarketStateRow {
-  id: number;
-  current_week: number;
-  dip_stock_id: string | null;
-  hype_stock_id: string | null;
-  novamed_event: "spike" | "flop" | null;
-  updated_at: string;
 }
 
 export interface TransactionRow {
@@ -65,18 +54,7 @@ export interface TransactionRow {
   shares: number;
   price: number;
   reasoning: string | null;
-  week_number: number;
   created_at: string;
-}
-
-export interface NewsHintRow {
-  id: string;
-  news_log_id: string | null;
-  stock_id: string;
-  direction: "up" | "down";
-  scenario_key: string;
-  planted_week: number;
-  consumed_at: string | null;
 }
 
 export interface AdminActionRow {

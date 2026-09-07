@@ -173,7 +173,7 @@ export function TradePanel({
               id="trade-reasoning"
               value={reasoning}
               onChange={(e) => setReasoning(e.target.value.slice(0, 500))}
-              placeholder="e.g. Steel prices are spiking, so I think AeroDrone will drop next week."
+              placeholder="e.g. Steel prices are spiking, so I think AeroDrone's price will drop soon."
               rows={2}
               className="nb-border bg-paper p-2 text-sm resize-none"
             />

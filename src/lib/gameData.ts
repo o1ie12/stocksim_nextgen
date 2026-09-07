@@ -2,6 +2,11 @@ import "server-only";
 import { supabaseAdmin } from "./supabaseAdmin";
 import type { StockKey } from "./stocksMeta";
 
+export interface PricePointDisplay {
+  price: number;
+  recordedAt: string;
+}
+
 export interface StockWithChange {
   id: string;
   key: StockKey;
@@ -11,38 +16,25 @@ export interface StockWithChange {
   description: string;
   currentPrice: number;
   startingPrice: number;
-  pctChangeThisWeek: number;
-  history: { week: number; price: number }[];
+  pctChangeRecent: number; // vs. the previous recorded price, not a "week"
+  history: PricePointDisplay[];
 }
 
-export async function getMarketState() {
-  const { data, error } = await supabaseAdmin.from("market_state").select("*").eq("id", 1).single();
-  if (error || !data) throw new Error(error?.message ?? "market_state missing");
-  return data;
-}
-
-export async function getStocksWithHistory(): Promise<{
-  stocks: StockWithChange[];
-  currentWeek: number;
-}> {
-  const [{ data: stocks, error: stocksError }, { data: history, error: historyError }, marketState] =
-    await Promise.all([
-      supabaseAdmin.from("stocks").select("*").order("sort_order"),
-      supabaseAdmin.from("price_history").select("*").order("week_number"),
-      getMarketState(),
-    ]);
+export async function getStocksWithHistory(): Promise<{ stocks: StockWithChange[] }> {
+  const [{ data: stocks, error: stocksError }, { data: history, error: historyError }] = await Promise.all([
+    supabaseAdmin.from("stocks").select("*").order("sort_order"),
+    supabaseAdmin.from("price_history").select("*").order("recorded_at"),
+  ]);
 
   if (stocksError || !stocks) throw new Error(stocksError?.message ?? "Failed to load stocks");
   if (historyError || !history) throw new Error(historyError?.message ?? "Failed to load price history");
 
-  const currentWeek = marketState.current_week as number;
-
   const enriched: StockWithChange[] = stocks.map((s) => {
     const series = history
       .filter((h) => h.stock_id === s.id)
-      .map((h) => ({ week: h.week_number as number, price: h.price as number }));
-    const prev = series.find((h) => h.week === currentWeek - 1);
-    const pctChangeThisWeek = prev ? ((s.current_price - prev.price) / prev.price) * 100 : 0;
+      .map((h) => ({ price: h.price as number, recordedAt: h.recorded_at as string }));
+    const previous = series.length >= 2 ? series[series.length - 2] : null;
+    const pctChangeRecent = previous ? ((s.current_price - previous.price) / previous.price) * 100 : 0;
 
     return {
       id: s.id,
@@ -53,12 +45,12 @@ export async function getStocksWithHistory(): Promise<{
       description: s.description,
       currentPrice: s.current_price,
       startingPrice: s.starting_price,
-      pctChangeThisWeek: Math.round(pctChangeThisWeek * 10) / 10,
+      pctChangeRecent: Math.round(pctChangeRecent * 10) / 10,
       history: series,
     };
   });
 
-  return { stocks: enriched, currentWeek };
+  return { stocks: enriched };
 }
 
 export interface PlayerHolding {
@@ -136,7 +128,6 @@ export async function getLeaderboard() {
 
 export interface NewsItemDisplay {
   id: string;
-  weekNumber: number;
   headline: string;
   stockKey: StockKey | null;
   stockName: string | null;
@@ -146,7 +137,7 @@ export interface NewsItemDisplay {
 
 export async function getNews(): Promise<NewsItemDisplay[]> {
   const [{ data: news, error: newsError }, { data: stocks, error: stocksError }] = await Promise.all([
-    supabaseAdmin.from("news_log").select("*").order("week_number", { ascending: false }).order("created_at", { ascending: false }),
+    supabaseAdmin.from("news_log").select("*").order("created_at", { ascending: false }),
     supabaseAdmin.from("stocks").select("id, key, name, color"),
   ]);
 
@@ -159,7 +150,6 @@ export async function getNews(): Promise<NewsItemDisplay[]> {
     const stock = n.stock_id ? stockById.get(n.stock_id) : null;
     return {
       id: n.id,
-      weekNumber: n.week_number,
       headline: n.headline,
       stockKey: (stock?.key as StockKey) ?? null,
       stockName: stock?.name ?? null,
@@ -196,7 +186,6 @@ export async function getAllPortfoliosForTeacher() {
 
 export interface TransactionDisplay {
   id: string;
-  weekNumber: number;
   stockKey: StockKey;
   stockName: string;
   action: "buy" | "sell";
@@ -208,12 +197,7 @@ export interface TransactionDisplay {
 
 export async function getPlayerTransactions(playerId: string): Promise<TransactionDisplay[]> {
   const [{ data: rows, error: txError }, { data: stocks, error: stocksError }] = await Promise.all([
-    supabaseAdmin
-      .from("transactions")
-      .select("*")
-      .eq("player_id", playerId)
-      .order("week_number")
-      .order("created_at"),
+    supabaseAdmin.from("transactions").select("*").eq("player_id", playerId).order("created_at"),
     supabaseAdmin.from("stocks").select("id, key, name"),
   ]);
 
@@ -226,7 +210,6 @@ export async function getPlayerTransactions(playerId: string): Promise<Transacti
     const stock = stockById.get(r.stock_id);
     return {
       id: r.id,
-      weekNumber: r.week_number,
       stockKey: (stock?.key as StockKey) ?? "snackbox",
       stockName: stock?.name ?? "Unknown",
       action: r.action,
@@ -291,48 +274,4 @@ export async function getAdminEditorData() {
     players: players.map((p) => ({ id: p.id, name: p.name, cash: p.cash })),
     holdingsByPlayer,
   };
-}
-
-export interface NewsHintDisplay {
-  id: string;
-  plantedWeek: number;
-  headline: string;
-  scenarioKey: string;
-  direction: "up" | "down";
-  stockKey: StockKey;
-  stockName: string;
-  consumedAt: string | null;
-}
-
-// Teacher-only visibility into the indirect news mapping — students never
-// see this. Useful for a teacher grading reasoning against what the news
-// actually meant.
-export async function getNewsHintsForTeacher(): Promise<NewsHintDisplay[]> {
-  const [{ data: hints, error: hintsError }, { data: news, error: newsError }, { data: stocks, error: stocksError }] =
-    await Promise.all([
-      supabaseAdmin.from("news_hints").select("*").order("planted_week", { ascending: false }),
-      supabaseAdmin.from("news_log").select("id, headline"),
-      supabaseAdmin.from("stocks").select("id, key, name"),
-    ]);
-
-  if (hintsError || !hints) throw new Error(hintsError?.message ?? "Failed to load news hints");
-  if (newsError || !news) throw new Error(newsError?.message ?? "Failed to load news");
-  if (stocksError || !stocks) throw new Error(stocksError?.message ?? "Failed to load stocks");
-
-  const newsById = new Map(news.map((n) => [n.id, n]));
-  const stockById = new Map(stocks.map((s) => [s.id, s]));
-
-  return hints.map((h) => {
-    const stock = stockById.get(h.stock_id);
-    return {
-      id: h.id,
-      plantedWeek: h.planted_week,
-      headline: newsById.get(h.news_log_id ?? "")?.headline ?? "(headline missing)",
-      scenarioKey: h.scenario_key,
-      direction: h.direction,
-      stockKey: (stock?.key as StockKey) ?? "snackbox",
-      stockName: stock?.name ?? "Unknown",
-      consumedAt: h.consumed_at,
-    };
-  });
 }
